@@ -88,14 +88,14 @@ public class CoffeeServiceServer {
     }
 
     static class CofeeServerImpl extends CoffeeServerGrpc.CoffeeServerImplBase {
-        static int counter=10;	  
+        static int counter=10;      
         @Override
         public void consumedCapsule(CapsuleConsumedRequest request, StreamObserver<CapsuleConsumedReply> responseObserver) {
             // Never call super methods, otherwise you will get "call is closed" and "unimplemented method" errors
 
             CapsuleConsumedReply reply = null;
             if (counter>5) {
-                reply=CapsuleConsumedReply.newBuilder().setExpectedRemaining(counter).setExpectedProvisionDate("No need, yet").build();	    
+                reply=CapsuleConsumedReply.newBuilder().setExpectedRemaining(counter).setExpectedProvisionDate("No need, yet").build();        
             } else {
                 reply=CapsuleConsumedReply.newBuilder().setExpectedProvisionDate("11 of november of 2019").setExpectedRemaining(counter).build();
                 counter=10;
@@ -148,31 +148,31 @@ public class CoffeeServiceServer {
             if(interval[0] + interval[1] > MAXINCIDENCES){
                 works = false;
             }
-		
-		    Date now = new Date();
-		    Date revision = new Date(now.getTime());
-		
-		    //Programmed inspections are on Wednesdays
-		    int programmedDay = 3;
-		    long dayToMilis = 60 * 60 * 24 * 1000L;
-		
-		    if(works){
-			    int difference = programmedDay - revision.getDay() ; 
-			
-			    //Curent day is SUN/MON/TUES
-			    if(difference > 0){
-				    System.out.println("IN");
-				    revision = new Date(now.getTime() + dayToMilis * difference);
+        
+            Date now = new Date();
+            Date revision = new Date(now.getTime());
+        
+            //Programmed inspections are on Wednesdays
+            int programmedDay = 3;
+            long dayToMilis = 60 * 60 * 24 * 1000L;
+        
+            if(works){
+                int difference = programmedDay - revision.getDay() ; 
+            
+                //Curent day is SUN/MON/TUES
+                if(difference > 0){
+                    System.out.println("IN");
+                    revision = new Date(now.getTime() + dayToMilis * difference);
 
-				    //Curent day is THURS/FRI/SAT
-			    }else if (difference < 0){
-				    System.out.println("IN2");
-				    revision = new Date(now.getTime() + dayToMilis * (7 + difference));
-			    }
-			
-		    }else{
-			    revision = new Date(now.getTime() + dayToMilis);
-		    }
+                    //Curent day is THURS/FRI/SAT
+                }else if (difference < 0){
+                    System.out.println("IN2");
+                    revision = new Date(now.getTime() + dayToMilis * (7 + difference));
+                }
+            
+            }else{
+                revision = new Date(now.getTime() + dayToMilis);
+            }
             
             
             reply = MachineStatusReply.newBuilder().setWorks(works).setDescription(description).setDate(revision.getDay() + "/" + revision.getMonth() + "/" + revision.getYear() + " at 12am.").build();

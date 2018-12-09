@@ -105,26 +105,26 @@ public class CoffeeServerClient {
         int port=50051;
         String host="localhost";
 
-		Map<String, String> inputParams = new HashMap<>();
-		
-		inputParams.put("capsuletype", "ristretto");
-		inputParams.put("clientid", "myclientid");
-		inputParams.put("port", "50051");
-		inputParams.put("host", "localhost");		
-		inputParams.put("functionality", "consumeCapsule");
-		inputParams.put("waterTemp", "");
-		inputParams.put("date", "");		
-		inputParams.put("pressure", "");
+        Map<String, String> inputParams = new HashMap<>();
+        
+        inputParams.put("capsuletype", "ristretto");
+        inputParams.put("clientid", "myclientid");
+        inputParams.put("port", "50051");
+        inputParams.put("host", "localhost");        
+        inputParams.put("functionality", "consumeCapsule");
+        inputParams.put("waterTemp", "");
+        inputParams.put("date", "");        
+        inputParams.put("pressure", "");
 
         //Read input params
-		for (String key : inputParams.keySet()) {
-			for (int i = 0; i < args.length; i++){
-				if(args[i].startsWith(key + ":")){
-					inputParams.put(key, args[i].substring(key.length() + 1));
-					break;
-				}
-			}
-		}
+        for (String key : inputParams.keySet()) {
+            for (int i = 0; i < args.length; i++){
+                if(args[i].startsWith(key + ":")){
+                    inputParams.put(key, args[i].substring(key.length() + 1));
+                    break;
+                }
+            }
+        }
 
         CoffeeServerClient client = new CoffeeServerClient(inputParams.get("host"), Integer.parseInt(inputParams.get("port")));
         try {
