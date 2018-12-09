@@ -21,19 +21,25 @@ import io.grpc.ServerBuilder;
 import io.grpc.stub.StreamObserver;
 import iotucm.coffeeservice.CapsuleConsumedReply;
 import iotucm.coffeeservice.CapsuleConsumedRequest;
+import iotucm.coffeeservice.MachineStatusReply;
+import iotucm.coffeeservice.MachineStatusRequest;
 import iotucm.coffeeservice.CoffeeServerGrpc;
 import iotucm.coffeeservice.*;
 
 import java.io.IOException;
 import java.util.logging.Logger;
-
+import java.util.Date;
 /**
  * Coffee service implementation
  */
 public class CoffeeServiceServer {
     private static final Logger logger = Logger.getLogger(CoffeeServiceServer.class.getName());
-
     private Server server;
+    
+    //Constants
+    public static final int MAXINCIDENCES = 1;
+    public static final float [][] MAXVALUE = new float[][]{{50, 65}, {80, 500}};
+    public static final String [][] DESCRIPTIONOPTIONS = new String[][]{{"Temperature is fine.", "Temperature warning.", "Temperature exceeded safe values."}, {" Pressure is fine.", " Pressure warning.", " Pressure exceeded safe values."}};
 
     private void start(int port) throws IOException {
         /* The port on which the server should run */
@@ -95,6 +101,81 @@ public class CoffeeServiceServer {
                 counter=10;
             }
             counter=counter-1;
+
+            responseObserver.onNext(reply);
+            responseObserver.onCompleted();
+        }
+
+        @Override
+        public void checkMachineStatus(MachineStatusRequest request, StreamObserver<MachineStatusReply> responseObserver) {
+
+            MachineStatusReply reply = null;
+            boolean works = true;
+            String description = "";
+            int interval[] = new int[]{0, 0};
+            
+            //Date now = new Date();
+            //Date expectedDate = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
+            
+            /*if(maxTemp[1] >= request.getWaterTemp() && request.getWaterTemp() > maxTemp[0]){
+                temp = 1;
+            }*/
+            
+            
+            //Check if the values are over the top warning ones.
+            for(int i = 0; i < MAXVALUE.length; i++){
+
+                float value;
+                
+
+                if (i == 0)
+                    value = request.getWaterTemp();
+                else
+                    value = request.getPressure();
+
+                if (value > MAXVALUE[i][0] && value < MAXVALUE[i][1]){
+                    interval[i] = 1;
+
+                }else if (value > MAXVALUE[i][1]){
+                    interval[i] = 2;
+                }
+                
+                description += DESCRIPTIONOPTIONS[i][interval[i]];
+            }
+            
+            
+            
+            if(interval[0] + interval[1] > MAXINCIDENCES){
+                works = false;
+            }
+		
+		    Date now = new Date();
+		    Date revision = new Date(now.getTime());
+		
+		    //Programmed inspections are on Wednesdays
+		    int programmedDay = 3;
+		    long dayToMilis = 60 * 60 * 24 * 1000L;
+		
+		    if(works){
+			    int difference = programmedDay - revision.getDay() ; 
+			
+			    //Curent day is SUN/MON/TUES
+			    if(difference > 0){
+				    System.out.println("IN");
+				    revision = new Date(now.getTime() + dayToMilis * difference);
+
+				    //Curent day is THURS/FRI/SAT
+			    }else if (difference < 0){
+				    System.out.println("IN2");
+				    revision = new Date(now.getTime() + dayToMilis * (7 + difference));
+			    }
+			
+		    }else{
+			    revision = new Date(now.getTime() + dayToMilis);
+		    }
+            
+            
+            reply = MachineStatusReply.newBuilder().setWorks(works).setDescription(description).setDate(revision.getDay() + "/" + revision.getMonth() + "/" + revision.getYear() + " at 12am.").build();
 
             responseObserver.onNext(reply);
             responseObserver.onCompleted();

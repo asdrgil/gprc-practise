@@ -76,6 +76,26 @@ public class CoffeeServerClient {
             logger.info("There is still coffee. Expected remaining " + response.getExpectedRemaining());
     }
 
+    /** A capsule is consumed */
+    public void checkMachineStatus(float waterTemp, long date, float pressure) {
+        MachineStatusRequest request = MachineStatusRequest.newBuilder().setWaterTemp(waterTemp).setDate(date).setPressure(pressure).build();
+        MachineStatusReply response;
+        try {
+            response = blockingStub.checkMachineStatus(request);
+        } catch (StatusRuntimeException e) {
+            logger.log(Level.WARNING, "RPC failed: {0}", e.getStatus());
+            return;
+        }
+        
+        String worksString = "The machine works correctly. ";
+        
+        if(!response.getWorks()){
+            worksString = "The machine does not work. ";
+        }
+        
+        logger.info("Description of the queries: " + response.getDescription() + worksString + "The next inspection will be on " + response.getDate());
+    }
+
     /**
     * Coffee server code. The first argument is the client id, the second, the capsule type, the fourth the server ip, the fifth the port.
     */
@@ -92,8 +112,11 @@ public class CoffeeServerClient {
 		inputParams.put("port", "50051");
 		inputParams.put("host", "localhost");		
 		inputParams.put("functionality", "consumeCapsule");
+		inputParams.put("waterTemp", "");
+		inputParams.put("date", "");		
+		inputParams.put("pressure", "");
 
-        
+        //Read input params
 		for (String key : inputParams.keySet()) {
 			for (int i = 0; i < args.length; i++){
 				if(args[i].startsWith(key + ":")){
@@ -104,8 +127,19 @@ public class CoffeeServerClient {
 		}
 
         CoffeeServerClient client = new CoffeeServerClient(inputParams.get("host"), Integer.parseInt(inputParams.get("port")));
-        try {      
-            client.consumeCapsule(inputParams.get("clientid"), inputParams.get("capsuletype"));
+        try {
+            if(inputParams.get("functionality").equals("consumeCapsule")){
+                client.consumeCapsule(inputParams.get("clientid"), inputParams.get("capsuletype"));
+
+            }else if(inputParams.get("functionality").equals("checkMachineStatus")){
+                //Check if there are any missing parameters
+                if(inputParams.get("waterTemp").length() == 0 || inputParams.get("date").length() == 0 || inputParams.get("pressure").length() == 0){
+                    logger.info("Error: water temperature, date and pressure are mandatory parameters.");
+                    System.exit(-1);
+                }
+            
+                client.checkMachineStatus(Float.valueOf(inputParams.get("waterTemp")), Long.parseLong(inputParams.get("date")), Float.valueOf(inputParams.get("pressure")));
+            }
         } finally {
             client.shutdown();
         }
