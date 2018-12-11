@@ -29,6 +29,20 @@ import iotucm.coffeeservice.*;
 import java.io.IOException;
 import java.util.logging.Logger;
 import java.util.Date;
+
+import java.util.HashMap;
+import java.util.Map;
+
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
+
+import org.json.simple.JSONArray;
+import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
+import org.json.simple.parser.ParseException;
+
 /**
  * Coffee service implementation
  */
@@ -40,6 +54,28 @@ public class CoffeeServiceServer {
     public static final int MAXINCIDENCES = 1;
     public static final float [][] MAXVALUE = new float[][]{{50, 65}, {80, 500}};
     public static final String [][] DESCRIPTIONOPTIONS = new String[][]{{"Temperature is fine.", "Temperature warning.", "Temperature exceeded safe values."}, {" Pressure is fine.", " Pressure warning.", " Pressure exceeded safe values."}};
+
+    public static final Map<String, Double> COFFEEPRICES = new HashMap<String, Double>()
+            {{
+                 put("ristretto", 1.0);
+                 put("volutto", 1.2);
+                 put("latte", 0.8);
+            }};
+
+   public static String getHTML(String urlString) throws Exception {
+      StringBuilder result = new StringBuilder();
+      URL url = new URL(urlString);
+      HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+      conn.setRequestMethod("GET");
+      BufferedReader buffer = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+      String readLine;
+      while ((readLine = buffer.readLine()) != null)
+         result.append(readLine);
+         
+      buffer.close();
+      return result.toString();
+   }
+
 
     private void start(int port) throws IOException {
         /* The port on which the server should run */
@@ -161,12 +197,10 @@ public class CoffeeServiceServer {
             
                 //Curent day is SUN/MON/TUES
                 if(difference > 0){
-                    System.out.println("IN");
                     revision = new Date(now.getTime() + dayToMilis * difference);
 
-                    //Curent day is THURS/FRI/SAT
+                //Curent day is THURS/FRI/SAT
                 }else if (difference < 0){
-                    System.out.println("IN2");
                     revision = new Date(now.getTime() + dayToMilis * (7 + difference));
                 }
             
@@ -176,6 +210,54 @@ public class CoffeeServiceServer {
             
             
             reply = MachineStatusReply.newBuilder().setWorks(works).setDescription(description).setDate(revision.getDay() + "/" + revision.getMonth() + "/" + revision.getYear() + " at 12am.").build();
+
+            responseObserver.onNext(reply);
+            responseObserver.onCompleted();
+        }
+
+
+        @Override
+        public void getPrice(MachinePricesRequest request, StreamObserver<MachinePricesReply> responseObserver) {
+
+            MachinePricesReply reply = null;           
+            float productPrice = -1;
+            
+            String productName = request.getProductName();
+
+            //If the given product name is available in the machine
+            if (COFFEEPRICES.get(productName) != null){
+                try {
+                    //Query currency exchange between EUR and the given currency
+                    String currency = request.getCurrency();
+                    String aux = getHTML("https://api.exchangeratesapi.io/latest?symbols=" + currency);
+                    JSONParser parser = new JSONParser();
+                    Object obj = parser.parse(aux);
+                    JSONObject jsonObject = (JSONObject) obj;
+                    aux = jsonObject.get("rates").toString();
+                    obj = parser.parse(aux);
+                    jsonObject = (JSONObject) obj;
+                    float currencyValue = Float.parseFloat(jsonObject.get(currency).toString());
+
+                    //Get price for new currency
+                    productPrice = (float) (COFFEEPRICES.get(productName) * currencyValue);
+
+                    //Round to two decimals
+		            productPrice *= 100;
+		            productPrice = Math.round(productPrice);
+		            productPrice /= 100;
+                //The given currency is not available
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }else{
+            
+            }
+            
+            
+            
+            //COFFEEPRICES.get()            
+            
+            reply = MachinePricesReply.newBuilder().setProductPrice(productPrice).build();
 
             responseObserver.onNext(reply);
             responseObserver.onCompleted();

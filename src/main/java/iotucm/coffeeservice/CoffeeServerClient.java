@@ -76,7 +76,6 @@ public class CoffeeServerClient {
             logger.info("There is still coffee. Expected remaining " + response.getExpectedRemaining());
     }
 
-    /** A capsule is consumed */
     public void checkMachineStatus(float waterTemp, long date, float pressure) {
         MachineStatusRequest request = MachineStatusRequest.newBuilder().setWaterTemp(waterTemp).setDate(date).setPressure(pressure).build();
         MachineStatusReply response;
@@ -94,6 +93,26 @@ public class CoffeeServerClient {
         }
         
         logger.info("Description of the queries: " + response.getDescription() + worksString + "The next inspection will be on " + response.getDate());
+    }
+
+    public void getPrice(String currency, String productName) {
+        MachinePricesRequest request = MachinePricesRequest.newBuilder().setCurrency(currency).setProductName(productName).build();
+        MachinePricesReply response;
+        try {
+            response = blockingStub.getPrice(request);
+        } catch (StatusRuntimeException e) {
+            logger.log(Level.WARNING, "RPC failed: {0}", e.getStatus());
+            return;
+        }
+        
+        //String worksString = "The machine works correctly. ";
+        
+        /*if(!response.getWorks()){
+            worksString = "The machine does not work. ";
+        }*/
+        
+        logger.info(Float.toString(response.getProductPrice()));
+        //logger.info("IN");
     }
 
     /**
@@ -115,6 +134,8 @@ public class CoffeeServerClient {
         inputParams.put("waterTemp", "");
         inputParams.put("date", "");        
         inputParams.put("pressure", "");
+        inputParams.put("currency", "");        
+        inputParams.put("productName", "");
 
         //Read input params
         for (String key : inputParams.keySet()) {
@@ -139,7 +160,17 @@ public class CoffeeServerClient {
                 }
             
                 client.checkMachineStatus(Float.valueOf(inputParams.get("waterTemp")), Long.parseLong(inputParams.get("date")), Float.valueOf(inputParams.get("pressure")));
+
+            }else if(inputParams.get("functionality").equals("getPrice")){
+                //Check if there are any missing parameters
+                if(inputParams.get("currency").length() == 0 || inputParams.get("productName").length() == 0){
+                    logger.info("Error: currency and product name are mandatory parameters.");
+                    System.exit(-1);
+                }
+
+                client.getPrice(inputParams.get("currency").toUpperCase(), inputParams.get("productName").toLowerCase());
             }
+
         } finally {
             client.shutdown();
         }
