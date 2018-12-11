@@ -1,0 +1,26 @@
+[Unit]
+Description=Coffee machine service
+After network.target = coffee.service
+
+[Service]
+User=user-iot
+
+# The  configuration  file  application.properties  should  be here:
+
+#change  this to your  workspace
+WorkingDirectory =/home/user-iot/gprc-practise
+
+#path to  executable.
+
+#executable  is a bash  script  which  calls  jar  file
+Type = forking
+ExecStart =/bin/bash /home/user-iot/gprc-practise/launch.sh start
+ExecStop =/bin/bash /home/user-iot/gprc-practise/launch.sh stop
+ExecReload =/bin/bash /home/user-iot/gprc-practise/launch.sh  reload
+
+TimeoutStopSec =10
+Restart=on-failure
+RestartSec =5
+
+[Install]
+WantedBy=multi-user.target
