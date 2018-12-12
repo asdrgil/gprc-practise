@@ -31,6 +31,12 @@ import iotucm.coffeeservice.CapsuleConsumedRequest;
 import iotucm.coffeeservice.CoffeeServerGrpc;
 import iotucm.coffeeservice.*;
 
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.Statement;
+
 /**
  * A simple client that requests a greeting from the {@link CoffeeServerServer}.
  */
@@ -95,8 +101,8 @@ public class CoffeeServerClient {
         logger.info("Description of the queries: " + response.getDescription() + worksString + "The next inspection will be on " + response.getDate());
     }
 
-    public void getPrice(String currency, String productName) {
-        MachinePricesRequest request = MachinePricesRequest.newBuilder().setCurrency(currency).setProductName(productName).build();
+    public void getPrice(String currency) {
+        MachinePricesRequest request = MachinePricesRequest.newBuilder().setCurrency(currency).build();
         MachinePricesReply response;
         try {
             response = blockingStub.getPrice(request);
@@ -104,15 +110,20 @@ public class CoffeeServerClient {
             logger.log(Level.WARNING, "RPC failed: {0}", e.getStatus());
             return;
         }
-        
-        //String worksString = "The machine works correctly. ";
-        
-        /*if(!response.getWorks()){
-            worksString = "The machine does not work. ";
-        }*/
-        
-        logger.info(Float.toString(response.getProductPrice()));
-        //logger.info("IN");
+
+        logger.info(response.getListPrices());
+    }
+
+    public void buyProductCoins(String currency, String productName, float coinsQuantity) {
+        MachineBuyProductCoinsRequest request = MachineBuyProductCoinsRequest.newBuilder().setCurrency(currency).setProductName(productName).setCoinsQuantity(coinsQuantity).build();
+        MachineBuyProductCoinsReply response;
+        try {
+            response = blockingStub.buyProductCoins(request);
+        } catch (StatusRuntimeException e) {
+            logger.log(Level.WARNING, "RPC failed: {0}", e.getStatus());
+            return;
+        }
+        logger.info(response.getChange());
     }
 
     /**
@@ -136,6 +147,7 @@ public class CoffeeServerClient {
         inputParams.put("pressure", "");
         inputParams.put("currency", "");        
         inputParams.put("productName", "");
+        inputParams.put("coinsQuantity", "");        
 
         //Read input params
         for (String key : inputParams.keySet()) {
@@ -162,13 +174,14 @@ public class CoffeeServerClient {
                 client.checkMachineStatus(Float.valueOf(inputParams.get("waterTemp")), Long.parseLong(inputParams.get("date")), Float.valueOf(inputParams.get("pressure")));
 
             }else if(inputParams.get("functionality").equals("getPrice")){
-                //Check if there are any missing parameters
-                if(inputParams.get("currency").length() == 0 || inputParams.get("productName").length() == 0){
-                    logger.info("Error: currency and product name are mandatory parameters.");
+                client.getPrice(inputParams.get("currency").toUpperCase());
+            }else if(inputParams.get("functionality").equals("buyProductCoins")){
+                if(inputParams.get("productName").length() == 0 || inputParams.get("coinsQuantity").length() == 0){
+                    logger.info("Error: Missing productName or coinsQuantity.");
                     System.exit(-1);
                 }
 
-                client.getPrice(inputParams.get("currency").toUpperCase(), inputParams.get("productName").toLowerCase());
+                client.buyProductCoins(inputParams.get("currency").toUpperCase(), inputParams.get("productName").toLowerCase(), Float.valueOf(inputParams.get("coinsQuantity")));
             }
 
         } finally {
@@ -176,4 +189,3 @@ public class CoffeeServerClient {
         }
     }
 }
-

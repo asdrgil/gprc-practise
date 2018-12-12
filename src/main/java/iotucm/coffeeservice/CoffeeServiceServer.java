@@ -43,6 +43,13 @@ import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.sql.PreparedStatement;
+
 /**
  * Coffee service implementation
  */
@@ -54,6 +61,8 @@ public class CoffeeServiceServer {
     public static final int MAXINCIDENCES = 1;
     public static final float [][] MAXVALUE = new float[][]{{50, 65}, {80, 500}};
     public static final String [][] DESCRIPTIONOPTIONS = new String[][]{{"Temperature is fine.", "Temperature warning.", "Temperature exceeded safe values."}, {" Pressure is fine.", " Pressure warning.", " Pressure exceeded safe values."}};
+    public final static String DRIVERLAB = "com.mysql.cj.jdbc.Driver";
+    public final static String URLLAB = "jdbc:mysql://localhost/dii_p3?&useJDBCCompliantTimezoneShift=true&useLegacyDatetimeCode=false&serverTimezone=UTC&user=user&password=password";
 
     public static final Map<String, Double> COFFEEPRICES = new HashMap<String, Double>()
             {{
@@ -62,7 +71,7 @@ public class CoffeeServiceServer {
                  put("latte", 0.8);
             }};
 
-   public static String getHTML(String urlString) throws Exception {
+    public static String getHTML(String urlString) throws Exception {
       StringBuilder result = new StringBuilder();
       URL url = new URL(urlString);
       HttpURLConnection conn = (HttpURLConnection) url.openConnection();
@@ -74,7 +83,27 @@ public class CoffeeServiceServer {
          
       buffer.close();
       return result.toString();
-   }
+    }
+
+    public static float getCurrencyExchange(String currency){
+        if(currency.equals("EUR") || currency.equals(""))
+            return (float) 1;
+
+        try {
+            //Query currency exchange between EUR and the given currency at this moment
+            String aux = getHTML("https://api.exchangeratesapi.io/latest?symbols=" + currency);
+            JSONParser parser = new JSONParser();
+            Object obj = parser.parse(aux);
+            JSONObject jsonObject = (JSONObject) obj;
+            aux = jsonObject.get("rates").toString();
+            obj = parser.parse(aux);
+            jsonObject = (JSONObject) obj;
+            return Float.parseFloat(jsonObject.get(currency).toString());
+        } catch (Exception e){
+            e.printStackTrace();
+            return (float) -1;
+        }
+    }
 
 
     private void start(int port) throws IOException {
@@ -219,45 +248,97 @@ public class CoffeeServiceServer {
         @Override
         public void getPrice(MachinePricesRequest request, StreamObserver<MachinePricesReply> responseObserver) {
 
-            MachinePricesReply reply = null;           
-            float productPrice = -1;
+            MachinePricesReply reply = null;
+            String currency = request.getCurrency();
+            String output = "The currency " + currency + " is not registered in the API.";
+            float currencyValue = getCurrencyExchange(currency);
             
-            String productName = request.getProductName();
+            //If the given currency is registered in the API
+            if(currencyValue != -1){
+                  
+                output = "The list of the product prices in " + currency + " are:\n";
+                Connection con = null;
 
-            //If the given product name is available in the machine
-            if (COFFEEPRICES.get(productName) != null){
                 try {
-                    //Query currency exchange between EUR and the given currency
-                    String currency = request.getCurrency();
-                    String aux = getHTML("https://api.exchangeratesapi.io/latest?symbols=" + currency);
-                    JSONParser parser = new JSONParser();
-                    Object obj = parser.parse(aux);
-                    JSONObject jsonObject = (JSONObject) obj;
-                    aux = jsonObject.get("rates").toString();
-                    obj = parser.parse(aux);
-                    jsonObject = (JSONObject) obj;
-                    float currencyValue = Float.parseFloat(jsonObject.get(currency).toString());
 
-                    //Get price for new currency
-                    productPrice = (float) (COFFEEPRICES.get(productName) * currencyValue);
+                    //Query sql database
+                    Class.forName(DRIVERLAB).newInstance();
+                    con = DriverManager.getConnection(URLLAB);
+                    Statement statement = con.createStatement();
+                    String selectSql = "SELECT name, price FROM coffee WHERE units > 0";
+                    ResultSet resultSet = statement.executeQuery(selectSql);
 
-                    //Round to two decimals
-		            productPrice *= 100;
-		            productPrice = Math.round(productPrice);
-		            productPrice /= 100;
-                //The given currency is not available
+                    // Print results from select statement
+                    while (resultSet.next())
+                        output += resultSet.getString(1) + ": " + Float.toString(resultSet.getFloat(2)*currencyValue) + " " + currency + "\n";
+                    
+                    System.out.println(output);
+
+                    if (con != null)
+                        con.close();
+
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
-            }else{
-            
             }
+
+            reply = MachinePricesReply.newBuilder().setListPrices(output).build();
+
+            responseObserver.onNext(reply);
+            responseObserver.onCompleted();
+        }
+        
+        @Override
+        public void buyProductCoins(MachineBuyProductCoinsRequest request, StreamObserver<MachineBuyProductCoinsReply> responseObserver) {
+
+            String currency = request.getCurrency();
+            String productName = request.getProductName();
+            float coinsQuantity = request.getCoinsQuantity();
             
+            float currencyValue = getCurrencyExchange(currency);
+
+            MachineBuyProductCoinsReply reply = null;
+            String change = "There is not coffee left from type " + productName + ". Please, try with another coffee.";
             
-            
-            //COFFEEPRICES.get()            
-            
-            reply = MachinePricesReply.newBuilder().setProductPrice(productPrice).build();
+            Connection con = null;
+            //int id = 0;
+            //float price = (float) 0;
+
+            try {
+
+                Class.forName(DRIVERLAB).newInstance();
+                con = DriverManager.getConnection(URLLAB);
+
+                Statement statement = con.createStatement();
+                String selectSql = "SELECT price FROM coffee WHERE units > 0 AND name = \"" + productName + "\" limit 1";
+                ResultSet resultSet = statement.executeQuery(selectSql);
+        
+                // If there are any units of the expected product
+                if (resultSet.next()){
+                    float productPrice = resultSet.getFloat(1)*currencyValue;
+                    float moneyLeft = coinsQuantity - productPrice;
+                    //Check if the user has enough money to buy the product
+                    if(moneyLeft >= 0){
+                        PreparedStatement pstmt = null;
+			            pstmt = con.prepareStatement("UPDATE coffee  SET units = units - 1 WHERE  name=\""+ productName +"\";");
+			            pstmt.executeUpdate();
+			            pstmt = con.prepareStatement("UPDATE money  SET ammount = ammount + " + Float.toString(productPrice) + "WHERE  currency=\""+ currency +"\";");
+			            pstmt.executeUpdate();
+                        change = "Here is you coffee of type " + productName + ". The change is " + Float.toString(moneyLeft) + currency;
+                    
+                    } else {
+                        change = "The product " + productName + " costs " + Float.toString(productPrice) + ". you have entered " + Float.toString(coinsQuantity) + ". Please try again.";
+                    }
+                }
+
+                if (con != null)
+                    con.close();
+
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+            reply = MachineBuyProductCoinsReply.newBuilder().setChange("IN").build();
 
             responseObserver.onNext(reply);
             responseObserver.onCompleted();
