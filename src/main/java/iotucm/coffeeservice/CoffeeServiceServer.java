@@ -104,6 +104,13 @@ public class CoffeeServiceServer {
             return (float) -1;
         }
     }
+    
+    //Round value to two decimal positions
+    public static float getRound2(float value){
+        value *= 100;
+        value = Math.round(value);
+        return value /100;
+    }
 
 
     private void start(int port) throws IOException {
@@ -270,9 +277,7 @@ public class CoffeeServiceServer {
 
                     // Print results from select statement
                     while (resultSet.next())
-                        output += resultSet.getString(1) + ": " + Float.toString(resultSet.getFloat(2)*currencyValue) + " " + currency + "\n";
-                    
-                    System.out.println(output);
+                        output += resultSet.getString(1) + ": " + Float.toString(getRound2(resultSet.getFloat(2)*currencyValue)) + " " + currency + "\n";
 
                     if (con != null)
                         con.close();
@@ -289,20 +294,17 @@ public class CoffeeServiceServer {
         }
         
         @Override
-        public void buyProductCoins(MachineBuyProductCoinsRequest request, StreamObserver<MachineBuyProductCoinsReply> responseObserver) {
+        public void buyProduct(MachineBuyProductRequest request, StreamObserver<MachineBuyProductReply> responseObserver) {
 
             String currency = request.getCurrency();
             String productName = request.getProductName();
-            float coinsQuantity = request.getCoinsQuantity();
-            
-            float currencyValue = getCurrencyExchange(currency);
+            float quantity = request.getQuantity();
+            String giftcard = request.getGiftcard();
 
-            MachineBuyProductCoinsReply reply = null;
+            MachineBuyProductReply reply = null;
             String change = "There is not coffee left from type " + productName + ". Please, try with another coffee.";
             
             Connection con = null;
-            //int id = 0;
-            //float price = (float) 0;
 
             try {
 
@@ -315,8 +317,30 @@ public class CoffeeServiceServer {
         
                 // If there are any units of the expected product
                 if (resultSet.next()){
-                    float productPrice = resultSet.getFloat(1)*currencyValue;
-                    float moneyLeft = coinsQuantity - productPrice;
+                
+                    float productPrice = resultSet.getFloat(1);
+                    float moneyLeft = -productPrice;
+                    
+                    
+                    //Pay in cash
+                    if(giftcard.length() == 0){
+                        productPrice = getRound2(productPrice * getCurrencyExchange(currency));
+                        
+                        
+
+                    //Pay with gift card
+                    }else{
+                        selectSql = "SELECT credit FROM giftcard WHERE token = \"" + giftcard + "\" limit 1";
+                        resultSet = statement.executeQuery(selectSql);
+
+                        if (resultSet.next()){
+                            quantity = resultSet.getFloat(1);
+                        }
+
+                    }
+                    
+                    moneyLeft += quantity;
+                    
                     //Check if the user has enough money to buy the product
                     if(moneyLeft >= 0){
                         PreparedStatement pstmt = null;
@@ -324,10 +348,17 @@ public class CoffeeServiceServer {
 			            pstmt.executeUpdate();
 			            pstmt = con.prepareStatement("UPDATE money  SET ammount = ammount + " + Float.toString(productPrice) + "WHERE  currency=\""+ currency +"\";");
 			            pstmt.executeUpdate();
-                        change = "Here is you coffee of type " + productName + ". The change is " + Float.toString(moneyLeft) + currency;
+			            
+			            //Pay with giftcard
+			            if(giftcard.length() > 0){
+			                pstmt = con.prepareStatement("UPDATE giftcard  SET credit = credit - " + Float.toString(productPrice) + "WHERE  token=\""+ giftcard + "\";");
+			                pstmt.executeUpdate();
+			            }
+
+                        change = "Here is you coffee of type " + productName + ". The spare money is " + Float.toString(moneyLeft) + currency;
                     
                     } else {
-                        change = "The product " + productName + " costs " + Float.toString(productPrice) + ". you have entered " + Float.toString(coinsQuantity) + ". Please try again.";
+                        change = "The product " + productName + " costs " + Float.toString(productPrice) + ". you have entered " + Float.toString(quantity) + ". Please try again.";
                     }
                 }
 
@@ -338,7 +369,7 @@ public class CoffeeServiceServer {
                 e.printStackTrace();
             }
 
-            reply = MachineBuyProductCoinsReply.newBuilder().setChange("IN").build();
+            reply = MachineBuyProductReply.newBuilder().setChange(change).build();
 
             responseObserver.onNext(reply);
             responseObserver.onCompleted();
@@ -346,4 +377,3 @@ public class CoffeeServiceServer {
 
     }
 }
-

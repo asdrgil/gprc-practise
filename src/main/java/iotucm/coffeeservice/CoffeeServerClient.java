@@ -114,11 +114,11 @@ public class CoffeeServerClient {
         logger.info(response.getListPrices());
     }
 
-    public void buyProductCoins(String currency, String productName, float coinsQuantity) {
-        MachineBuyProductCoinsRequest request = MachineBuyProductCoinsRequest.newBuilder().setCurrency(currency).setProductName(productName).setCoinsQuantity(coinsQuantity).build();
-        MachineBuyProductCoinsReply response;
+    public void buyProduct(String currency, String productName, float quantity, String giftcard) {
+        MachineBuyProductRequest request = MachineBuyProductRequest.newBuilder().setCurrency(currency).setProductName(productName).setQuantity(quantity).setGiftcard(giftcard).build();
+        MachineBuyProductReply response;
         try {
-            response = blockingStub.buyProductCoins(request);
+            response = blockingStub.buyProduct(request);
         } catch (StatusRuntimeException e) {
             logger.log(Level.WARNING, "RPC failed: {0}", e.getStatus());
             return;
@@ -137,7 +137,6 @@ public class CoffeeServerClient {
 
         Map<String, String> inputParams = new HashMap<>();
         
-        inputParams.put("capsuletype", "ristretto");
         inputParams.put("clientid", "myclientid");
         inputParams.put("port", "50051");
         inputParams.put("host", "localhost");        
@@ -147,7 +146,8 @@ public class CoffeeServerClient {
         inputParams.put("pressure", "");
         inputParams.put("currency", "");        
         inputParams.put("productName", "");
-        inputParams.put("coinsQuantity", "");        
+        inputParams.put("quantity", "0");
+        inputParams.put("giftcard", "");
 
         //Read input params
         for (String key : inputParams.keySet()) {
@@ -162,7 +162,7 @@ public class CoffeeServerClient {
         CoffeeServerClient client = new CoffeeServerClient(inputParams.get("host"), Integer.parseInt(inputParams.get("port")));
         try {
             if(inputParams.get("functionality").equals("consumeCapsule")){
-                client.consumeCapsule(inputParams.get("clientid"), inputParams.get("capsuletype"));
+                client.consumeCapsule(inputParams.get("clientid"), inputParams.get("productName"));
 
             }else if(inputParams.get("functionality").equals("checkMachineStatus")){
                 //Check if there are any missing parameters
@@ -175,13 +175,13 @@ public class CoffeeServerClient {
 
             }else if(inputParams.get("functionality").equals("getPrice")){
                 client.getPrice(inputParams.get("currency").toUpperCase());
-            }else if(inputParams.get("functionality").equals("buyProductCoins")){
-                if(inputParams.get("productName").length() == 0 || inputParams.get("coinsQuantity").length() == 0){
-                    logger.info("Error: Missing productName or coinsQuantity.");
+            }else if(inputParams.get("functionality").equals("buyProduct")){
+                if(inputParams.get("productName").length() == 0 || (inputParams.get("quantity").length() == 0 && inputParams.get("currency").length() == 0 && inputParams.get("giftcard").length() == 0)){
+                    logger.info("Error: Missing parameters to buy a product.");
                     System.exit(-1);
                 }
 
-                client.buyProductCoins(inputParams.get("currency").toUpperCase(), inputParams.get("productName").toLowerCase(), Float.valueOf(inputParams.get("coinsQuantity")));
+                client.buyProduct(inputParams.get("currency").toUpperCase(), inputParams.get("productName").toLowerCase(), Float.valueOf(inputParams.get("quantity")), inputParams.get("giftcard"));
             }
 
         } finally {

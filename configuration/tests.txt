@@ -1,0 +1,25 @@
+#Consume capsule (original method)
+mvn exec:java -Dexec.mainClass=iotucm.coffeeservice.CoffeeServerClient -Dexec.args="clientid:client1 functionality:consumeCapsule clientid:client1 productName:ristretto"
+
+#Check machine status
+mvn exec:java -Dexec.mainClass=iotucm.coffeeservice.CoffeeServerClient -Dexec.args="clientid:client1 functionality:checkMachineStatus waterTemp:60 date:1544697128 pressure:10"
+
+#View prices (EUR)
+mvn exec:java -Dexec.mainClass=iotucm.coffeeservice.CoffeeServerClient -Dexec.args="clientid:client1 functionality:getPrice"
+
+#View prices (JPY)
+mvn exec:java -Dexec.mainClass=iotucm.coffeeservice.CoffeeServerClient -Dexec.args="clientid:client1 functionality:getPrice currency:JPY"
+
+#Buy a coffe of type ristretto with a giftcard with token fde76cae
+mvn exec:java -Dexec.mainClass=iotucm.coffeeservice.CoffeeServerClient -Dexec.args="clientid:client1 functionality:buyProduct productName:ristretto giftcard:fde76cae"
+
+#Buy a coffe of type ristretto in cash (EUR)
+mvn exec:java -Dexec.mainClass=iotucm.coffeeservice.CoffeeServerClient -Dexec.args="clientid:client1 functionality:buyProduct productName:ristretto quantity:20"
+
+
+
+
+
+
+#Buy a coffe of type ristretto in cash (USD)
+mvn exec:java -Dexec.mainClass=iotucm.coffeeservice.CoffeeServerClient -Dexec.args="clientid:client1 functionality:buyProduct productName:ristretto giftcard:fde76cae"

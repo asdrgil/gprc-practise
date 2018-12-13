@@ -27,7 +27,7 @@ service CoffeeServer {
     rpc consumedCapsule(CapsuleConsumedRequest) returns (CapsuleConsumedReply) {}
     rpc checkMachineStatus(MachineStatusRequest) returns (MachineStatusReply) {}
     rpc getPrice(MachinePricesRequest) returns (MachinePricesReply) {}
-    rpc buyProductCoins(MachineBuyProductCoinsRequest) returns (MachineBuyProductCoinsReply) {}    
+    rpc buyProduct(MachineBuyProductRequest) returns (MachineBuyProductReply) {}    
 }
 
 // The capsule consumption signal
@@ -63,22 +63,13 @@ message MachinePricesReply {
     string listPrices = 13;
 }
 
-message MachineBuyProductCoinsRequest {
+message MachineBuyProductRequest {
     string currency = 14;
     string productName = 15;
-    float coinsQuantity = 16;
+    float quantity = 16;
+    string giftcard = 17;
 }
 
-message MachineBuyProductCoinsReply {
-    string change = 17;
+message MachineBuyProductReply {
+    string change = 18;
 }
-
-/*message MachineGiftCardRequest {
-    string giftcard = 14;
-    string productName = 15;
-}
-
-message MachineGiftCardReply {
-    float credit = 16;
-    int32 code = 17;
-}*/
