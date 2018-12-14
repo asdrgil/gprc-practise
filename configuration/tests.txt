@@ -16,10 +16,5 @@ mvn exec:java -Dexec.mainClass=iotucm.coffeeservice.CoffeeServerClient -Dexec.ar
 #Buy a coffe of type ristretto in cash (EUR)
 mvn exec:java -Dexec.mainClass=iotucm.coffeeservice.CoffeeServerClient -Dexec.args="clientid:client1 functionality:buyProduct productName:ristretto quantity:20"
 
-
-
-
-
-
-#Buy a coffe of type ristretto in cash (USD)
-mvn exec:java -Dexec.mainClass=iotucm.coffeeservice.CoffeeServerClient -Dexec.args="clientid:client1 functionality:buyProduct productName:ristretto giftcard:fde76cae"
+#Buy a coffe of type ristretto in cash (EUR)
+mvn exec:java -Dexec.mainClass=iotucm.coffeeservice.CoffeeServerClient -Dexec.args="clientid:client1 functionality:buyProduct productName:ristretto quantity:20 currency:USD"
